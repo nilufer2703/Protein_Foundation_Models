@@ -42,11 +42,34 @@ class PositiveSequencePool:
         if "target" not in df.columns:
             raise KeyError(f"'target' column not found in {csv_file}")
 
+        # Keep only training rows
+        if "split" in df.columns:
+            # New format:
+            # sequence,target,num_mutations,split
+            df = df[
+                df["split"].astype(str).str.lower() == "train"
+            ].copy()
+
+        elif "set" in df.columns:
+            # Original format:
+            # sequence,set,validation,target
+            df = df[
+                (df["set"].astype(str).str.lower() == "train") &
+                (~df["validation"].astype(bool))
+            ].copy()
+
+        else:
+            raise ValueError(
+                f"Could not find either 'split' or 'set' column. "
+                f"Available columns: {list(df.columns)}"
+            )
+
+        # Keep only positive sequences
         df = df[df["target"].astype(float) > positive_threshold].copy()
 
         if len(df) == 0:
             raise ValueError(
-                f"No positive sequences found with target > {positive_threshold}"
+                f"No positive training sequences found with target > {positive_threshold}"
             )
 
         self.sequences = df["sequence"].dropna().astype(str).tolist()
